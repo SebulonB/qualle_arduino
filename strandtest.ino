@@ -1,4 +1,5 @@
 #include <Adafruit_NeoPixel.h>
+#include "TimerOne.h"
 #ifdef __AVR__
   #include <avr/power.h>
 #endif
@@ -32,13 +33,20 @@ void setup() {
 
   strip.begin();
   strip.show(); // Initialize all pixels to 'off'
+
+               pinMode(13, OUTPUT);
+               Timer1.initialize(1000000);
+               Timer1.attachInterrupt(blinken);  
 }
+
+
+void blinken() {
+               digitalWrite(13, digitalRead(13) ^ 1);
+               }
 
 void loop() {
 
-
-
-    theaterChase(strip.Color(80, 127, 255), 200); // Blue    
+     theaterChase(strip.Color(80, 127, 255), 200); // Blue    
     //theaterChase(strip.Color(20, 20, 255), 200); // Blue    
 }
 
