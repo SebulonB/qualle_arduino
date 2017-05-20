@@ -1,55 +1,82 @@
 #include <Adafruit_NeoPixel.h>
 #include "TimerOne.h"
+#include <stdio.h>
 #ifdef __AVR__
   #include <avr/power.h>
 #endif
 
+//Defines
 #define PIN 6
 #define LED_CNT_RING 12
 #define LED_CNT_MID  3
+#define LED_CNT (LED_CNT_RING + LED_CNT_MID)
+#define BOARD_LED 13
 
-// Parameter 1 = number of pixels in strip
-// Parameter 2 = Arduino pin number (most are valid)
-// Parameter 3 = pixel type flags, add together as needed:
-//   NEO_KHZ800  800 KHz bitstream (most NeoPixel products w/WS2812 LEDs)
-//   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
-//   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
-//   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
-//   NEO_RGBW    Pixels are wired for RGBW bitstream (NeoPixel RGBW products)
+
+//Global Variabels
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(LED_CNT_RING + LED_CNT_MID, PIN, NEO_GRB + NEO_KHZ800);
+unsigned long millis_cnt = 0; 
+uint16_t pitch = 240;
 
-// IMPORTANT: To reduce NeoPixel burnout risk, add 1000 uF capacitor across
-// pixel power leads, add 300 - 500 Ohm resistor on first pixel's data input
-// and minimize distance between Arduino and first pixel.  Avoid connecting
-// on a live circuit...if you must, connect GND first.
+uint32_t colors[LED_CNT] ={0};
 
-void setup() {
-  // This is for Trinket 5V 16MHz, you can remove these three lines if you are not using a Trinket
-  #if defined (__AVR_ATtiny85__)
-    if (F_CPU == 16000000) clock_prescale_set(clock_div_1);
-  #endif
-  // End of trinket special code
+static FILE uartout = {0} ;
 
-
-  strip.begin();
-  strip.show(); // Initialize all pixels to 'off'
-
-               pinMode(13, OUTPUT);
-               Timer1.initialize(1000000);
-               Timer1.attachInterrupt(blinken);  
+// create a output function
+// This works because Serial.write, although of
+// type virtual, already exists.
+static int uart_putchar (char c, FILE *stream)
+{
+    Serial.write(c) ;
+    return 0 ;
 }
 
 
-void blinken() {
-               digitalWrite(13, digitalRead(13) ^ 1);
-               }
+//Init Funktions
+void setup() {
+
+ //Init Strip
+ strip.begin();
+ strip.show(); // Initialize all pixels to 'off'
+
+ Serial.begin(9600);
+
+ //pinMode(BOARD_LED, OUTPUT);
+ millis_cnt = millis();
+
+ // fill in the UART file descriptor with pointer to writer.
+ fdev_setup_stream (&uartout, uart_putchar, NULL, _FDEV_SETUP_WRITE);
+
+ // The uart is the standard output device STDOUT.
+ stdout = &uartout ; 
+   
+}
+
 
 void loop() {
 
-     theaterChase(strip.Color(80, 127, 255), 200); // Blue    
-    //theaterChase(strip.Color(20, 20, 255), 200); // Blue    
+
+  static uint8_t count =0;
+  
+
+  //pitch
+  if(millis() >= millis_cnt){
+
+    theaterChaseRing(strip.Color(80, 127, 255), 3); // Blue 
+    theaterChaseMid(strip.Color(0, 255, 0), 3); // Blue    
+       
+    millis_cnt += (unsigned long long)pitch;
+  }//end pitch
+
+  for(int i=0; i<LED_CNT; i++)    
+    strip.setPixelColor(i, colors[i]);
+  strip.show();
+   
 }
 
+
+//-------------------------| Effects |--------------------------------
+//
 void colorMiddel(uint32_t c){
 
   for(uint16_t i=LED_CNT_RING; i<LED_CNT_RING + LED_CNT_MID; i++) {    
@@ -106,22 +133,46 @@ void rainbowCycle(uint8_t wait) {
 }
 
 //Theatre-style crawling lights.
-void theaterChase(uint32_t c, uint8_t wait) {
-  for (int j=0; j<10; j++) {  //do 10 cycles of chasing
-    for (int q=0; q < 3; q++) {
-      for (uint16_t i=0; i < strip.numPixels(); i=i+3) {
-        strip.setPixelColor(i+q, c);    //turn every third pixel on
-      }
-      strip.show();
+void theaterChaseRing(uint32_t c, uint8_t chase) {
+  
+  static int q = 0;
+  //calc chase Step
+  if(q++ > chase)
+   q = 0;
 
-      delay(wait);
-
-      for (uint16_t i=0; i < strip.numPixels(); i=i+3) {
-        strip.setPixelColor(i+q, 0);        //turn every third pixel off
-      }
-    }
+  for (uint16_t i=0; i < LED_CNT_RING; ) {
+    colors[i+q] = 0;    //turn every third pixel on
+    i=i+3;
+  }
+  for (uint16_t i=0; i < LED_CNT_RING;) {
+     colors[i+q] = c;       //turn every third pixel off
+     i=i+3;
   }
 }
+
+//Theatre-style crawling lights.
+void theaterChaseMid(uint32_t c, uint8_t chase) {
+  
+  static int q = 0;
+  //calc chase Step
+  if(q++ > chase)
+   q = 0;
+
+  for (uint16_t i=LED_CNT_RING; i < LED_CNT; ) {
+    colors[i+q] = c;    //turn every third pixel on
+    i=i+3;
+  }
+  strip.show();
+  for (uint16_t i=LED_CNT_RING; i < LED_CNT;) {
+     colors[i+q], 0;        //turn every third pixel off
+     i=i+3;
+  }
+}
+
+
+
+
+
 
 //Theatre-style crawling lights with rainbow effect
 void theaterChaseRainbow(uint8_t wait) {
