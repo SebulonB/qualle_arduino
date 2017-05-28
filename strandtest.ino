@@ -21,6 +21,8 @@ unsigned long millis_cnt_ring = 0;
 unsigned long millis_cnt_100ms = 0;
 uint16_t pitch = 100;
 
+
+
 static FILE uartout = {0};
 
 
@@ -30,11 +32,13 @@ enum BUTTON_STATE
  BUTTON_STATE_RUN = 0,
  BUTTON_STATE_CONFIG_RING,
  BUTTON_STATE_GO_TO_CONFIG_RING,
+ BUTTON_STATE_CONFIG_MID,
  BUTTON_STATE_NUM 
 };
 
 enum BUTTON_STATE button_state = BUTTON_STATE_RUN;
-
+bool button_read = 0;
+bool button_latch = false;
 
 enum RING_STATE {
 
@@ -43,6 +47,19 @@ enum RING_STATE {
   RING_STATE_BLUE,
   RING_STATE_NUM
 };
+
+enum RING_STATE ring_state = RING_STATE_RED;
+
+enum MID_STATE {
+
+  MID_STATE_RED = 0,
+  MID_STATE_GREEN,
+  MID_STATE_BLUE,
+  MID_STATE_NUM
+};
+
+enum MID_STATE mid_state = MID_STATE_RED;
+
 
 // create a output function
 // This works because Serial.write, although of
@@ -96,7 +113,7 @@ void loop() {
   
 
   //pitch
-  if(millis() >= millis_cnt_ring){
+  /*if(millis() >= millis_cnt_ring){
 
     if(  digitalRead(2) )
     {
@@ -120,7 +137,7 @@ void loop() {
     
     millis_cnt_ring += (unsigned long long)pitch;
   }//end pitch
-
+*/
 
    
 }
@@ -130,23 +147,46 @@ void loop() {
 void check_button_state()
 {
   static uint32_t time_old = 0;
+  static uint8_t button_cnt = 0;
 
   switch(button_state)
   {
 
     case BUTTON_STATE_RUN:
-      if( !digitalRead(BUTTON) ){
+
+      for (uint16_t i=0; i < strip.numPixels(); i++) {
+        strip.setPixelColor(i, 0);    //turn every third pixel on
+        strip.show();
+      }    
+    
+      if( !digitalRead(BUTTON) && (button_latch == false) ){
         button_state =  BUTTON_STATE_GO_TO_CONFIG_RING;
         time_old = millis();
         printf("Change Button state to: GO RING\n");
       }
+      //if we come from an other state where the button is pressed
+      if( digitalRead(BUTTON) ) button_latch = false;
       break;
 
     case BUTTON_STATE_GO_TO_CONFIG_RING:
       if( !digitalRead(BUTTON) ){
-        if((millis() - time_old) >= 5000){
+        if((millis() - time_old) >= 2000){
           button_state =  BUTTON_STATE_CONFIG_RING;  
-          printf("Change Button State to: CONFIG RING\n");        
+          button_latch = true;
+          button_cnt = (uint8_t)ring_state;
+          printf("Change Button State to: CONFIG RING\n");  
+          for (uint16_t i=0; i < strip.numPixels(); i++) {
+            strip.setPixelColor(i, strip.Color(255, 0, 0));    //turn every third pixel on
+            strip.show();
+            delay(100);
+          }            
+          for (uint16_t i=0; i < strip.numPixels(); i++) {
+            if(i <= ring_state)
+              strip.setPixelColor(i, strip.Color(255, 0, 0));    //turn every third pixel on
+            else
+              strip.setPixelColor(i, strip.Color(0, 0, 0));    //turn every third pixel on            
+            strip.show();
+          }     
         }
       }
       else
@@ -157,9 +197,87 @@ void check_button_state()
       break;
 
     case BUTTON_STATE_CONFIG_RING:
-        button_state = BUTTON_STATE_RUN;
-        printf("GO FROM CONFIG TO RUN\n");
+        //select ring config
+        if(button_read == 1 && (digitalRead(BUTTON) == 0)){
+          if(button_cnt++ > RING_STATE_NUM){
+            button_cnt = 0;
+          }  
+          time_old = millis();
+          button_latch = false;
+          printf("Button CNT: %d\n", button_cnt);
+          for (uint16_t i=0; i < strip.numPixels(); i++) {
+            if(i <= button_cnt)
+              strip.setPixelColor(i, strip.Color(255, 0, 0));    //turn every third pixel on
+            else
+              strip.setPixelColor(i, strip.Color(0, 0, 0));    //turn every third pixel on            
+            strip.show();
+          }  
+          
+        }
+
+        //go to config mid mode
+        if( !button_latch && !digitalRead(BUTTON) && ((millis() - time_old) >= 2000) ){
+          //get orginal BUTTON CNT
+          if(--button_cnt == 0xFF) button_cnt = 0; //!! works only with uint8_t
+          ring_state = button_cnt;
+          button_cnt = (uint8_t)mid_state;
+          button_state =  BUTTON_STATE_CONFIG_MID;  
+          button_latch = true;
+          
+          printf("Goto CONFIG MID, with RING state: %d\n", ring_state);      
+
+          for (uint16_t i=0; i < strip.numPixels(); i++) {
+            strip.setPixelColor(i, strip.Color(0, 255, 0));    //turn every third pixel on
+            strip.show();
+            delay(100);
+          }            
+          for (uint16_t i=0; i < strip.numPixels(); i++) {
+            if(i <= mid_state)
+              strip.setPixelColor(i, strip.Color(0, 255, 0));    //turn every third pixel on
+            else
+              strip.setPixelColor(i, strip.Color(0, 0, 0));    //turn every third pixel on            
+            strip.show();
+          }  
+                
+        }
+
+        //read old button State for (Flankenerkennung
+        button_read = digitalRead(BUTTON);
       break;
+
+    case BUTTON_STATE_CONFIG_MID:
+        //select ring config
+        if(button_read == 1 && (digitalRead(BUTTON) == 0)){
+          if(button_cnt++ > MID_STATE_NUM){
+            button_cnt = 0;
+          }  
+          time_old = millis();
+          button_latch = false;
+          printf("Button CNT: %d\n", button_cnt);
+          for (uint16_t i=0; i < strip.numPixels(); i++) {
+            if(i <= button_cnt)
+              strip.setPixelColor(i, strip.Color(0, 255, 0));    //turn every third pixel on
+            else
+              strip.setPixelColor(i, strip.Color(0, 0, 0));    //turn every third pixel on            
+            strip.show();
+          }  
+
+          
+        }
+
+        //go to run mode
+        if( !button_latch && !digitalRead(BUTTON) && ((millis() - time_old) >= 2000) ){
+          //get orginal BUTTON CNT
+          if(--button_cnt == 0xFF) button_cnt = 0; //!! works only with uint8_t
+          mid_state = button_cnt;
+          button_state =  BUTTON_STATE_RUN;  
+          button_latch = true;
+          printf("Goto RUN Mode, witht MID state: %d\n", mid_state);            
+        }
+
+        //read old button State for (Flankenerkennung
+        button_read = digitalRead(BUTTON);
+      break;      
 
     default:
         button_state = BUTTON_STATE_RUN;
