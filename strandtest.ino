@@ -199,7 +199,7 @@ void check_button_state()
     case BUTTON_STATE_CONFIG_RING:
         //select ring config
         if(button_read == 1 && (digitalRead(BUTTON) == 0)){
-          if(button_cnt++ > RING_STATE_NUM){
+          if(++button_cnt >= RING_STATE_NUM){
             button_cnt = 0;
           }  
           time_old = millis();
@@ -218,7 +218,8 @@ void check_button_state()
         //go to config mid mode
         if( !button_latch && !digitalRead(BUTTON) && ((millis() - time_old) >= 2000) ){
           //get orginal BUTTON CNT
-          if(--button_cnt == 0xFF) button_cnt = 0; //!! works only with uint8_t
+          if(button_cnt == 0) button_cnt = (RING_STATE_NUM - 1);
+          else if(--button_cnt == 0xFF) button_cnt = 0; //!! works only with uint8_t
           ring_state = button_cnt;
           button_cnt = (uint8_t)mid_state;
           button_state =  BUTTON_STATE_CONFIG_MID;  
@@ -248,7 +249,7 @@ void check_button_state()
     case BUTTON_STATE_CONFIG_MID:
         //select ring config
         if(button_read == 1 && (digitalRead(BUTTON) == 0)){
-          if(button_cnt++ > MID_STATE_NUM){
+          if(++button_cnt >= MID_STATE_NUM){
             button_cnt = 0;
           }  
           time_old = millis();
@@ -268,7 +269,8 @@ void check_button_state()
         //go to run mode
         if( !button_latch && !digitalRead(BUTTON) && ((millis() - time_old) >= 2000) ){
           //get orginal BUTTON CNT
-          if(--button_cnt == 0xFF) button_cnt = 0; //!! works only with uint8_t
+          if(button_cnt == 0) button_cnt = (MID_STATE_NUM - 1);
+          else if(--button_cnt == 0xFF) button_cnt = 0; //!! works only with uint8_t
           mid_state = button_cnt;
           button_state =  BUTTON_STATE_RUN;  
           button_latch = true;
