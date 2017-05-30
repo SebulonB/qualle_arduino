@@ -16,10 +16,12 @@
 
 //Global Variabels
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(LED_CNT_RING, PIN, NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel strip_center = Adafruit_NeoPixel(LED_CNT_MID, 5, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel mids = Adafruit_NeoPixel(LED_CNT_MID, 5, NEO_GRB + NEO_KHZ800);
 unsigned long millis_cnt_ring = 0; 
+unsigned long millis_cnt_mid = 0; 
 unsigned long millis_cnt_100ms = 0;
-uint16_t pitch = 100;
+uint16_t pitch_ring = 1000;
+uint16_t pitch_mid  = 1000;
 
 
 
@@ -48,7 +50,7 @@ enum RING_STATE {
   RING_STATE_NUM
 };
 
-enum RING_STATE ring_state = RING_STATE_RED;
+enum RING_STATE ring_state = RING_STATE_GREEN;
 
 enum MID_STATE {
 
@@ -80,13 +82,14 @@ void setup() {
  strip.begin();
  strip.show(); // Initialize all pixels to 'off'
 
- strip_center.begin();
- strip_center.show(); // Initialize all pixels to 'off'
+ mids.begin();
+ mids.show(); // Initialize all pixels to 'off'
 
  Serial.begin(9600);
 
  //pinMode(BOARD_LED, OUTPUT);
- millis_cnt_ring = millis();
+ millis_cnt_ring  = millis();
+ millis_cnt_mid   = millis();
  millis_cnt_100ms = millis();
 
  // fill in the UART file descriptor with pointer to writer.
@@ -105,42 +108,93 @@ void loop() {
   static uint8_t count =0;
   uint32_t color;
 
-  //do something all 10mms
+  //do something all 100ms
   if(millis() >= millis_cnt_100ms){
     check_button_state();
     millis_cnt_100ms += (unsigned long long)100;
   }
   
-
-  //pitch
-  /*if(millis() >= millis_cnt_ring){
-
-    if(  digitalRead(2) )
-    {
-      color = strip.Color(0, 255, 0);
-    }
-    else
-    {
-      color = strip.Color(255, 0, 0);
-    }
-
-      for (uint16_t i=0; i < strip.numPixels(); i++) {
-        strip.setPixelColor(i, color);    //turn every third pixel on
-      }
-    strip.show(); 
-    
-
-      for (uint16_t i=0; i < strip_center.numPixels(); i++) {
-        strip_center.setPixelColor(i, color);    //turn every third pixel on
-      }
-    strip_center.show(); 
-    
-    millis_cnt_ring += (unsigned long long)pitch;
+  //pitch ring
+  if(millis() >= millis_cnt_ring){
+    if(button_state == BUTTON_STATE_RUN){
+      ring_state_machine();      
+    }//end if button State
+    millis_cnt_ring += (unsigned long long)pitch_ring;
   }//end pitch
-*/
+
+  //pitch mid
+  if(millis() >= millis_cnt_mid){
+    if(button_state == BUTTON_STATE_RUN){
+      mid_state_machine();      
+    }//end if button State
+    millis_cnt_mid += (unsigned long long)pitch_mid;
+  }//end pitch
 
    
 }
+
+
+void ring_state_machine(void)
+{
+
+  printf("Ring State: %d \n", ring_state);
+  switch(ring_state)
+  {
+     case RING_STATE_RED:
+       effekt_set_color_ring( strip.Color(255, 0, 0));  
+       break;  
+
+     case RING_STATE_GREEN:
+       effekt_set_color_ring( strip.Color(0, 255, 0));  
+       break;   
+
+     case RING_STATE_BLUE:
+       effekt_set_color_ring( strip.Color(0, 0, 255));  
+       break;  
+    
+  }
+}//end ring StateMachinge
+
+
+void mid_state_machine(void)
+{
+  printf("Mid State: %d\n", mid_state);  
+  switch(mid_state)
+  {
+     case MID_STATE_RED:
+       effekt_set_color_mid( strip.Color(255, 0, 0));  
+       break;  
+
+     case MID_STATE_GREEN:
+       effekt_set_color_mid( strip.Color(0, 255, 0));  
+       break;   
+
+     case MID_STATE_BLUE:
+       effekt_set_color_mid( strip.Color(0, 0, 255));  
+       break;  
+    
+  }
+}//end ring StateMachinge
+
+
+
+
+void effekt_set_color_ring( uint32_t c)
+{
+  for (uint16_t i=0; i < strip.numPixels(); i++) {
+    strip.setPixelColor(i, c);    
+  }    
+  strip.show(); 
+}
+
+void effekt_set_color_mid( uint32_t c)
+{
+  for (uint16_t i=0; i < mids.numPixels(); i++) {
+    mids.setPixelColor(i, c);    
+  }    
+  mids.show(); 
+}
+
 
 
 
@@ -153,16 +207,19 @@ void check_button_state()
   {
 
     case BUTTON_STATE_RUN:
-
-      for (uint16_t i=0; i < strip.numPixels(); i++) {
-        strip.setPixelColor(i, 0);    //turn every third pixel on
-        strip.show();
-      }    
     
       if( !digitalRead(BUTTON) && (button_latch == false) ){
         button_state =  BUTTON_STATE_GO_TO_CONFIG_RING;
         time_old = millis();
         printf("Change Button state to: GO RING\n");
+        for (uint16_t i=0; i < strip.numPixels(); i++) {
+          strip.setPixelColor(i, 0);   
+          strip.show();
+        }    
+        for (uint16_t i=0; i < mids.numPixels(); i++) {
+          mids.setPixelColor(i, 0);   
+          mids.show();
+        }                  
       }
       //if we come from an other state where the button is pressed
       if( digitalRead(BUTTON) ) button_latch = false;
