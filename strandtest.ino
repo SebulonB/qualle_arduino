@@ -1,5 +1,6 @@
 #include <Adafruit_NeoPixel.h>
 #include "TimerOne.h"
+#include <EEPROM.h>
 #include <stdio.h>
 #ifdef __AVR__
   #include <avr/power.h>
@@ -63,6 +64,13 @@ enum MID_STATE {
 enum MID_STATE mid_state = MID_STATE_RED;
 
 
+enum EEPROM_ADR
+{
+  EEPROM_ADR_STATE_RING = 0,
+  EEPROM_ADR_STATE_MID  = 4,
+};
+
+
 // create a output function
 // This works because Serial.write, although of
 // type virtual, already exists.
@@ -91,6 +99,9 @@ void setup() {
  millis_cnt_ring  = millis();
  millis_cnt_mid   = millis();
  millis_cnt_100ms = millis();
+
+ ring_state = EEPROM.read((int)EEPROM_ADR_STATE_RING);
+ mid_state = EEPROM.read((int)EEPROM_ADR_STATE_MID);
 
  // fill in the UART file descriptor with pointer to writer.
  fdev_setup_stream (&uartout, uart_putchar, NULL, _FDEV_SETUP_WRITE);
@@ -129,8 +140,6 @@ void loop() {
     }//end if button State
     millis_cnt_mid += (unsigned long long)pitch_mid;
   }//end pitch
-
-   
 }
 
 
@@ -211,7 +220,7 @@ void check_button_state()
       if( !digitalRead(BUTTON) && (button_latch == false) ){
         button_state =  BUTTON_STATE_GO_TO_CONFIG_RING;
         time_old = millis();
-        printf("Change Button state to: GO RING\n");
+        //printf("Change Button state to: GO RING\n");
         for (uint16_t i=0; i < strip.numPixels(); i++) {
           strip.setPixelColor(i, 0);   
           strip.show();
@@ -249,7 +258,7 @@ void check_button_state()
       else
       {
         button_state = BUTTON_STATE_RUN;
-        printf("GOTO RUN\n");
+        //printf("GOTO RUN\n");
       }
       break;
 
@@ -261,7 +270,7 @@ void check_button_state()
           }  
           time_old = millis();
           button_latch = false;
-          printf("Button CNT: %d\n", button_cnt);
+          //printf("Button CNT: %d\n", button_cnt);
           for (uint16_t i=0; i < strip.numPixels(); i++) {
             if(i <= button_cnt)
               strip.setPixelColor(i, strip.Color(255, 0, 0));    //turn every third pixel on
@@ -278,11 +287,13 @@ void check_button_state()
           if(button_cnt == 0) button_cnt = (RING_STATE_NUM - 1);
           else if(--button_cnt == 0xFF) button_cnt = 0; //!! works only with uint8_t
           ring_state = button_cnt;
+          EEPROM.write((int)EEPROM_ADR_STATE_RING, (uint8_t)ring_state);
+
           button_cnt = (uint8_t)mid_state;
           button_state =  BUTTON_STATE_CONFIG_MID;  
           button_latch = true;
           
-          printf("Goto CONFIG MID, with RING state: %d\n", ring_state);      
+          //printf("Goto CONFIG MID, with RING state: %d\n", ring_state);      
 
           for (uint16_t i=0; i < strip.numPixels(); i++) {
             strip.setPixelColor(i, strip.Color(0, 255, 0));    //turn every third pixel on
@@ -329,9 +340,10 @@ void check_button_state()
           if(button_cnt == 0) button_cnt = (MID_STATE_NUM - 1);
           else if(--button_cnt == 0xFF) button_cnt = 0; //!! works only with uint8_t
           mid_state = button_cnt;
+          EEPROM.write((int)EEPROM_ADR_STATE_MID, (uint8_t)mid_state);
           button_state =  BUTTON_STATE_RUN;  
           button_latch = true;
-          printf("Goto RUN Mode, witht MID state: %d\n", mid_state);            
+          //printf("Goto RUN Mode, witht MID state: %d\n", mid_state);            
         }
 
         //read old button State for (Flankenerkennung
@@ -340,7 +352,7 @@ void check_button_state()
 
     default:
         button_state = BUTTON_STATE_RUN;
-        printf("GO FROM default TO RUN");  
+        //printf("GO FROM default TO RUN");  
       break;  
        
   }
