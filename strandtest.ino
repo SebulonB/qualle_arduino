@@ -22,7 +22,7 @@ unsigned long millis_cnt_ring = 0;
 unsigned long millis_cnt_mid = 0; 
 unsigned long millis_cnt_100ms = 0;
 uint16_t pitch_ring = 1000;
-uint16_t pitch_mid  = 1000;
+uint16_t pitch_mid  = 100;
 
 
 
@@ -58,6 +58,7 @@ enum MID_STATE {
   MID_STATE_RED = 0,
   MID_STATE_GREEN,
   MID_STATE_BLUE,
+  MID_STATE_CHASE_1,
   MID_STATE_NUM
 };
 
@@ -181,13 +182,22 @@ void mid_state_machine(void)
      case MID_STATE_BLUE:
        effekt_set_color_mid( strip.Color(0, 0, 255));  
        break;  
-    
+
+
+     case MID_STATE_CHASE_1:
+       theaterChaseMid( strip.Color(255, 255, 255));  
+       break;  
+  
   }
 }//end ring StateMachinge
 
 
 
-
+/*********************************************************************************************
+                       --------------
+                      |    Effekts   |
+                       --------------
+**********************************************************************************************/ 
 void effekt_set_color_ring( uint32_t c)
 {
   for (uint16_t i=0; i < strip.numPixels(); i++) {
@@ -205,8 +215,50 @@ void effekt_set_color_mid( uint32_t c)
 }
 
 
+//Theatre-style crawling lights.
+void theaterChaseMid(uint32_t c) {
+
+  static int8_t q = 0;
+  static uint8_t j = 0;
+
+  if(++q >= 3) q = -1;
+
+  if(++j > 255) j = 0;
+  
+
+   for (uint16_t i=0; i < mids.numPixels(); i=i+1) {
+    mids.setPixelColor(i, 0);        //turn every third pixel off
+   }
+
+  for (uint16_t i=0; i < mids.numPixels(); i=i+2) {
+    mids.setPixelColor(i+q, Wheel( (i+j) % 255) );    //turn every third pixel on
+  }
+  mids.show();
+}
 
 
+
+// Input a value 0 to 255 to get a color value.
+// The colours are a transition r - g - b - back to r.
+uint32_t Wheel(byte WheelPos) {
+  WheelPos = 255 - WheelPos;
+  if(WheelPos < 85) {
+    return strip.Color(255 - WheelPos * 3, 0, WheelPos * 3);
+  }
+  if(WheelPos < 170) {
+    WheelPos -= 85;
+    return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
+  }
+  WheelPos -= 170;
+  return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
+}
+
+
+/*********************************************************************************************
+                       ----------------------
+                      | Button State Machine |
+                       ----------------------
+**********************************************************************************************/ 
 void check_button_state()
 {
   static uint32_t time_old = 0;
@@ -356,169 +408,6 @@ void check_button_state()
       break;  
        
   }
+}//end check Button
 
-
-
-
-
-  
-}
-
-
-
-//-------------------------| Effects |--------------------------------
-//
-void colorMiddel(uint32_t c){
-
-  for(uint16_t i=LED_CNT_RING; i<LED_CNT_RING + LED_CNT_MID; i++) {    
-    strip.setPixelColor(i, c);
-    strip.show();
-  }
-}
-
-void colorCircle(uint32_t c, uint8_t wait){
-
-  for(uint16_t i=0; i<LED_CNT_RING; i++) {
-    strip.setPixelColor(i-1, 0);    
-    strip.setPixelColor(i, c);
-    strip.show();
-    delay(wait);
-  }
-  //shut down last Pixel
- strip.setPixelColor(LED_CNT_RING-1, 0);
-  
-}
-
-// Fill the dots one after the other with a color
-void colorWipe(uint32_t c, uint8_t wait) {
-  for(uint16_t i=0; i<LED_CNT_RING; i++) {
-    strip.setPixelColor(i, c);
-    strip.show();
-    delay(wait);
-  }
-}
-
-void rainbow(uint8_t wait) {
-  uint16_t i;
-  static uint16_t j =0;
-
-  if(j++ >255)
-    j=0;
-
-
-    for(i=0; i<LED_CNT_RING; i++) {
-      strip.setPixelColor(i, Wheel((i+j) & 255));
-    }
-
-}
-
-// Slightly different, this makes the rainbow equally distributed throughout
-void rainbowCycle(uint8_t wait) {
-  uint16_t i;
-  static uint16_t j = 0;
-
-  if(j++ > (255 * 5));
-    j=0;
-  
-
-
-    for(i=0; i< 13; i++) {
-      strip.setPixelColor(i, Wheel(((i * 256 / strip.numPixels()) + j) & 255));
-    }
-
-}
-
-//Theatre-style crawling lights.
-void theaterChaseRing(uint32_t c, uint8_t chase) {
-  
-  static int q = 0;
-  //calc chase Step
-  if(q++ > chase)
-   q = 0;
-
-  for (uint16_t i=0; i < LED_CNT_RING; ) {
-    strip.setPixelColor((i+q), 0);    //turn every third pixel on
-    i=i+3;
-  }
-
-  for (uint16_t i=0; i < LED_CNT_RING;) {
-     strip.setPixelColor((i+q), c);       //turn every third pixel off
-     i=i+2;
-  }
-
-  
-}
-
-//Theatre-style crawling lights.
-void theaterChaseMid(uint32_t c, uint8_t chase) {
-  
-  static int q , j= 128;
-  //calc chase Step
-  if(q++ > LED_CNT)
-   q = LED_CNT_RING;
-
-  if(j++ > 255)
-    j =0;
-
-  for (uint16_t i=LED_CNT_RING; i < LED_CNT; ) {
-    strip.setPixelColor((i),  Wheel((i+j) & 255));    //turn every third pixel on
-   i=i+1;
-  }
-
-  //strip.setPixelColor((q), 0);        //turn every third pixel off
- 
-}
-
-
-
-
-
-
-//Theatre-style crawling lights with rainbow effect
-void theaterChaseRainbow(uint8_t wait) {
-  for (int j=0; j < 256; j++) {     // cycle all 256 colors in the wheel
-    for (int q=0; q < 3; q++) {
-      for (uint16_t i=0; i < strip.numPixels(); i=i+3) {
-        strip.setPixelColor(i+q, Wheel( (i+j) % 255));    //turn every third pixel on
-      }
-      strip.show();
-
-      delay(wait);
-
-      for (uint16_t i=0; i < strip.numPixels(); i=i+3) {
-        strip.setPixelColor(i+q, 0);        //turn every third pixel off
-      }
-    }
-  }
-}
-
-// Input a value 0 to 255 to get a color value.
-// The colours are a transition r - g - b - back to r.
-uint32_t Wheel(byte WheelPos) {
-  WheelPos = 255 - WheelPos;
-  if(WheelPos < 85) {
-    return strip.Color(255 - WheelPos * 3, 0, WheelPos * 3);
-  }
-  if(WheelPos < 170) {
-    WheelPos -= 85;
-    return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
-  }
-  WheelPos -= 170;
-  return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
-}
-
-
-
-//  colorWipe(strip.Color(255, 0, 0), 50); // Red
- // colorWipe(strip.Color(0, 255, 0), 50); // Green
- // colorWipe(strip.Color(0, 0, 255), 50); // Blue
-//colorWipe(strip.Color(0, 0, 0, 255), 50); // White RGBW
-  // Send a theater pixel chase in...
- // theaterChase(strip.Color(127, 127, 127), 50); // White
- // theaterChase(strip.Color(127, 0, 0), 50); // Red
- // theaterChase(strip.Color(0, 0, 127), 50); // Blue
-
- // rainbow(20);
- // rainbowCycle(20);
-  //theaterChaseRainbow(50);
 
