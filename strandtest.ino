@@ -49,7 +49,9 @@ enum RING_STATE {
   RING_STATE_GREEN,
   RING_STATE_BLUE,
   RING_STATE_RAINBOW,
+  RING_STATE_RAINBOW_SLOW,  
   RING_STATE_WIPE,
+  RING_STATE_WIPE_SLOW,  
   RING_STATE_NUM
 };
 
@@ -61,6 +63,7 @@ enum MID_STATE {
   MID_STATE_GREEN,
   MID_STATE_BLUE,
   MID_STATE_CHASE_1,
+  MID_STATE_PULSE,
   MID_STATE_NUM
 };
 
@@ -169,10 +172,21 @@ void ring_state_machine(void)
        effekt_RainbowRing();
        break;
 
+     case RING_STATE_RAINBOW_SLOW:
+       pitch_ring = 1000; 
+       effekt_RainbowRing();
+       break;
+
      case RING_STATE_WIPE:
        pitch_ring = 90;
        effekt_colorWipeRing();
        break;
+
+     case RING_STATE_WIPE_SLOW:
+       pitch_ring = 500;
+       effekt_colorWipeRing();
+       break;
+           
     
   }
 }//end ring StateMachinge
@@ -194,11 +208,16 @@ void mid_state_machine(void)
      case MID_STATE_BLUE:
        effekt_set_color_mid( strip.Color(0, 0, 255));  
        break;  
-
-
+       
      case MID_STATE_CHASE_1:
+       pitch_mid  = 100;
        theaterChaseMid( strip.Color(255, 255, 255));  
-       break;  
+       break;
+
+     case MID_STATE_PULSE:
+       pitch_mid  = 240;
+       effekt_colorPulseMid();
+       break;
   
   }
 }//end ring StateMachinge
@@ -264,6 +283,23 @@ void effekt_set_color_mid( uint32_t c)
     mids.setPixelColor(i, c);    
   }    
   mids.show(); 
+}
+
+//Mid Effetks
+void effekt_colorPulseMid( void )
+{
+
+  static uint32_t c = 0;
+
+  if(c == 0) c = strip.Color(255, 255, 255);
+  else c = 0;
+
+  for (uint16_t i=0; i < mids.numPixels(); i++) {
+    mids.setPixelColor(i, c);    
+  }    
+  mids.show();
+
+  
 }
 
 
