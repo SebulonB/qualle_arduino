@@ -21,7 +21,7 @@ Adafruit_NeoPixel mids = Adafruit_NeoPixel(LED_CNT_MID, 5, NEO_GRB + NEO_KHZ800)
 unsigned long millis_cnt_ring = 0; 
 unsigned long millis_cnt_mid = 0; 
 unsigned long millis_cnt_100ms = 0;
-uint16_t pitch_ring = 1000;
+uint16_t pitch_ring = 250;
 uint16_t pitch_mid  = 100;
 
 
@@ -48,6 +48,7 @@ enum RING_STATE {
   RING_STATE_RED = 0,
   RING_STATE_GREEN,
   RING_STATE_BLUE,
+  RING_STATE_WIPE,
   RING_STATE_NUM
 };
 
@@ -161,6 +162,11 @@ void ring_state_machine(void)
      case RING_STATE_BLUE:
        effekt_set_color_ring( strip.Color(0, 0, 255));  
        break;  
+
+     case RING_STATE_WIPE:
+       pitch_ring = 250; //we must to be a litle bit faster
+       effekt_colorWipeRing( strip.Color(255, 0, 0) );
+       break;
     
   }
 }//end ring StateMachinge
@@ -198,6 +204,8 @@ void mid_state_machine(void)
                       |    Effekts   |
                        --------------
 **********************************************************************************************/ 
+
+//Effekt Ring
 void effekt_set_color_ring( uint32_t c)
 {
   for (uint16_t i=0; i < strip.numPixels(); i++) {
@@ -206,6 +214,27 @@ void effekt_set_color_ring( uint32_t c)
   strip.show(); 
 }
 
+
+void effekt_colorWipeRing(uint32_t c) {
+
+  static int8_t led_cnt = 0;
+  static int8_t q = 0;
+
+  strip.setPixelColor(led_cnt,  Wheel( (q) % 255) );
+  strip.show();
+
+  //we full, clear the strip
+
+  if(++q > 255) q = 0;
+  
+  if(++led_cnt > strip.numPixels()) led_cnt = 0;      
+  
+}
+
+
+
+
+//Mid Effetks
 void effekt_set_color_mid( uint32_t c)
 {
   for (uint16_t i=0; i < mids.numPixels(); i++) {
@@ -238,6 +267,7 @@ void theaterChaseMid(uint32_t c) {
 
 
 
+
 // Input a value 0 to 255 to get a color value.
 // The colours are a transition r - g - b - back to r.
 uint32_t Wheel(byte WheelPos) {
@@ -252,6 +282,7 @@ uint32_t Wheel(byte WheelPos) {
   WheelPos -= 170;
   return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
 }
+
 
 
 /*********************************************************************************************
