@@ -48,6 +48,7 @@ enum RING_STATE {
   RING_STATE_RED = 0,
   RING_STATE_GREEN,
   RING_STATE_BLUE,
+  RING_STATE_RAINBOW,
   RING_STATE_WIPE,
   RING_STATE_NUM
 };
@@ -163,9 +164,14 @@ void ring_state_machine(void)
        effekt_set_color_ring( strip.Color(0, 0, 255));  
        break;  
 
-     case RING_STATE_WIPE:
+     case RING_STATE_RAINBOW:
        pitch_ring = 250; //we must to be a litle bit faster
-       effekt_colorWipeRing( strip.Color(255, 0, 0) );
+       effekt_RainbowRing();
+       break;
+
+     case RING_STATE_WIPE:
+       pitch_ring = 90;
+       effekt_colorWipeRing();
        break;
     
   }
@@ -215,7 +221,7 @@ void effekt_set_color_ring( uint32_t c)
 }
 
 
-void effekt_colorWipeRing(uint32_t c) {
+void effekt_RainbowRing(void) {
 
   static int8_t led_cnt = 0;
   static int8_t q = 0;
@@ -224,14 +230,31 @@ void effekt_colorWipeRing(uint32_t c) {
   strip.show();
 
   //we full, clear the strip
-
-  if(++q > 255) q = 0;
-  
+  if(++q > 255) q = 0;  
   if(++led_cnt > strip.numPixels()) led_cnt = 0;      
-  
 }
 
 
+void effekt_colorWipeRing(void) {
+
+  static int8_t led_cnt = 0;
+  static int8_t q = 0;
+  static uint32_t c = Wheel( (q) % 255);
+
+  strip.setPixelColor(led_cnt, c );
+  strip.show();
+
+  //we full, clear the strip
+  if(++led_cnt > strip.numPixels()){
+    //calc new Color
+    if(q == 0) c = strip.Color(255, 0, 0);
+    else if(q == 1) c = strip.Color(0, 255, 0);
+    else if(q == 2) c = strip.Color(0, 0, 255);
+    else c = strip.Color(255, 255, 255);
+    if(++q > 4) q = 0;      
+    led_cnt = 0;      
+  }
+}
 
 
 //Mid Effetks
